@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IWO Master Deck</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --navy-dark: #0a192f;
+            --navy-blue: #112240;
+            --navy-light: #233554;
+            --gold: #f59e0b;
+        }
+
+        body {
+            background-color: var(--navy-dark);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .perspective {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .card-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* FIXED STUDY MODE CSS */
+        .study-mode #main-view { 
+            display: block; 
+            overflow-y: auto; 
+            padding: 1.5rem;
+        }
+        
+        .study-mode .card-inner { 
+            transform: none !important; 
+            height: auto !important; 
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            cursor: default;
+            box-shadow: none;
+        }
+
+        .study-mode .card-face { 
+            position: relative !important; 
+            width: 100% !important;
+            height: auto !important;
+            min-height: unset !important;
+            backface-visibility: visible !important;
+            transform: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            border-radius: 1rem;
+        }
+
+        .study-mode .card-front {
+            padding: 2rem 1.5rem;
+            text-align: left !important;
+            align-items: flex-start !important;
+        }
+
+        .study-mode .card-back {
+            padding: 2rem 1.5rem;
+        }
+
+        .study-mode #tap-hint { display: none; }
+
+        /* Section Specific Themes */
+        .theme-interview { border-top: 8px solid #22c55e; } /* Green - New Interview Section */
+        .theme-personal { border-top: 8px solid #3b82f6; } 
+        .theme-technical { border-top: 8px solid #10b981; } 
+        .theme-training { border-top: 8px solid #f59e0b; } 
+        .theme-policy { border-top: 8px solid #ef4444; } 
+        .theme-leadership { border-top: 8px solid #a855f7; } 
+
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        #library-modal {
+            transition: transform 0.3s ease-in-out;
+            transform: translateY(100%);
+        }
+        #library-modal.open {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <!-- Header -->
+    <header class="p-4 bg-slate-900 shadow-lg flex justify-between items-center z-10">
+        <div>
+            <h1 class="text-xl font-bold text-white leading-tight">IWO Master Deck</h1>
+            <p id="category-label" class="text-xs uppercase tracking-widest text-green-400">Section Name</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleStudyMode()" id="study-btn" class="p-2 bg-slate-800 rounded-lg text-xs font-bold border border-slate-700">Study Mode</button>
+            <button onclick="toggleLibrary()" class="p-2 bg-blue-900 rounded-lg text-xs font-bold border border-blue-700">Library</button>
+        </div>
+    </header>
+
+    <!-- Progress Bar -->
+    <div class="w-full h-1 bg-gray-800">
+        <div id="progress-bar" class="h-full bg-green-500 transition-all duration-300" style="width: 0%"></div>
+    </div>
+
+    <!-- Main Card View -->
+    <main id="main-view" class="flex-grow flex items-center justify-center p-6 perspective relative">
+        <div id="card-container" class="w-full max-w-md h-[450px] relative card-inner shadow-2xl rounded-2xl">
+            <!-- Front -->
+            <div id="card-front" class="card-face card-front absolute inset-0 bg-slate-800 rounded-2xl flex flex-col items-center justify-center p-8 text-center border border-slate-700">
+                <span id="card-header-info" class="text-xs text-slate-500 uppercase mb-4 tracking-widest">#1 | OSB Interview Prep</span>
+                <h2 id="question-text" class="text-xl md:text-2xl font-semibold leading-tight"></h2>
+                <p id="tap-hint" class="mt-8 text-slate-400 text-sm animate-pulse">Tap to see answer</p>
+            </div>
+            <!-- Back -->
+            <div id="card-back" class="card-face card-back absolute inset-0 bg-slate-700 rounded-2xl flex flex-col p-6 overflow-y-auto border border-slate-600">
+                <span class="text-xs text-green-400 uppercase mb-2">Detailed Answer</span>
+                <div id="answer-text" class="text-base leading-relaxed text-slate-100"></div>
+                <div class="mt-auto pt-4 border-t border-slate-600 flex justify-center flip-back-msg">
+                    <p class="text-xs text-slate-400 italic">Tap to flip back</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Navigation Controls -->
+    <footer id="nav-footer" class="p-6 grid grid-cols-2 gap-4 safe-area-bottom bg-slate-900 z-10">
+        <button onclick="prevCard()" class="py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold flex items-center justify-center">
+            ← Prev
+        </button>
+        <button onclick="nextCard()" class="py-4 bg-green-600 hover:bg-green-500 rounded-xl font-bold flex items-center justify-center">
+            Next →
+        </button>
+        <div class="col-span-2 flex justify-between items-center text-xs text-slate-500">
+             <span id="progress-text">1 / 100</span>
+             <button onclick="resetOrder()" class="hover:text-green-400">Jump to Start</button>
+        </div>
+    </footer>
+
+    <!-- Library Modal -->
+    <div id="library-modal" class="fixed inset-0 bg-slate-900 z-50 overflow-y-auto p-4 flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Content Library</h2>
+            <button onclick="toggleLibrary()" class="p-2 bg-red-900 rounded-lg text-sm font-bold">Close</button>
+        </div>
+        <div id="library-content" class="space-y-6">
+            <!-- Dynamic sections go here -->
+        </div>
+    </div>
+
+    <script>
+        const flashcards = [
+            // PART 1 - OSB Interview Prep (GREEN THEME)
+            { q: "What do you have to contribute to the Service?", a: "I bring practical leadership experience developed over many years in complex, high-pressure environments. In my civilian career I have been responsible for coordinating people, systems, and time-critical outcomes, often where mistakes had real impacts on others. I believe I can contribute maturity, sound judgment, strong communication skills, and a willingness to take responsibility while continuing to learn from those more experienced than me.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Why do you want to be a Navy Officer?", a: "This decision comes from a desire to serve rather than to advance my personal career. While I have had success in civilian roles, I am seeking work that is grounded in service, responsibility, and contribution to Australia’s security. The Navy appeals to me because of its strong values, team culture, and its role in protecting Australia’s interests in an increasingly complex maritime and information environment.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Do you have the right academic qualifications and personal traits to become an Officer?", a: "Yes. I meet the academic requirements, and I believe I have developed many of the personal traits expected of an Officer. These include resilience, adaptability, emotional awareness, and the ability to work constructively with others under pressure. I am comfortable receiving feedback and recognise that continuous improvement is essential in Defence.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Do you know the role and can you cope with the responsibilities?", a: "Yes. I understand that as an Information Warfare Officer I would support commanders through intelligence, information effects, and decision support. The role carries responsibility, discretion, and accountability. I am realistic about the weight of this responsibility and believe my background has prepared me to manage it with care and professionalism.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Do you know the training process and where and how long you will be in training?", a: "Yes. I understand that Initial Military Training consists of 18 weeks at HMAS Creswell, followed by approximately 23 weeks of Initial Employment Training at HMAS Watson. After this, I will complete around 12 months of consolidation training to become fully qualified. I recognise this is a demanding and extended process and have planned for it both personally and with my family.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What will you learn at Officer training and what will the training environment be like?", a: "At HMAS Creswell, I will learn the foundations of naval leadership, discipline, service values, military law, seamanship, weapons safety, and physical conditioning. The environment is structured, challenging, and deliberately demanding to build resilience and teamwork. At HMAS Watson, the focus shifts toward technical and operational training specific to Information Warfare.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "How much do you know about military life in general?", a: "I understand that military life involves discipline, hierarchy, postings, deployments, and reduced personal flexibility. It requires a consistent professional standard both on and off duty. I am not approaching this with unrealistic expectations and understand that service comes with personal and family sacrifice.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "How will your lifestyle be affected by joining the Defence Force?", a: "My lifestyle will become more structured and service-focused. There will be periods away from home, less control over location, and increased physical and mental demands. This was carefully considered with my partner, and we have discussed the practical and emotional impacts involved.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Do you know the base locations relevant to your job and the equipment you will be using?", a: "Yes. Likely locations include Sydney, particularly HMAS Watson and Fleet Base East, as well as Canberra in joint or intelligence environments. The role primarily involves working with secure information systems, intelligence platforms, and command-support tools rather than frontline weapons systems.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What Primary Qualification will you belong to?", a: "I am applying to join the Royal Australian Navy as an Information Warfare Officer, which will be my Primary Qualification.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What are the main functions of the role and what is its combat relevance?", a: "The main function is to support commanders by enabling accurate, timely, and protected information. This includes intelligence support, cyber awareness, and information assurance. While the role is often non-kinetic, its combat relevance is significant because effective information directly influences operational success and force protection.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What are the potential operating environments for this job?", a: "Operating environments include ships, shore headquarters, joint task forces, and coalition or deployed operations. These environments can be fast-paced and information-heavy, requiring calm decision-making and attention to detail.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What are the employment conditions – positive and negative?", a: "Positive aspects include structured career development, job security, professional training, and the opportunity to serve Australia. Challenges include postings, deployments, and time away from family. I accept these conditions as part of the commitment to Defence service.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What are the pay entitlements during IMT/IET and once fully qualified?", a: "I understand the starting salary during training is approximately $67,000, progressing to around $92,000 once fully qualified, excluding allowances. I am aware this represents a reduction from my current civilian income, which I have consciously accepted.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Do you understand the appointment conditions of service?", a: "Yes. I understand the Initial Minimum Period of Service, posting obligations, performance expectations, and the requirement to place service needs ahead of personal preference.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What does your family or partner think about your application?", a: "My family is supportive and involved in the decision. We have discussed relocations, deployments, and lifestyle changes openly and realistically. Their support is based on understanding the commitment required.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "Can you offer unrestricted service and do you understand what this means?", a: "Yes. I understand unrestricted service means being available for postings and deployments as required by Defence, without personal limitations. I am prepared to offer that commitment.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What is the Pre-Entry Fitness Assessment and what are the minimum requirements?", a: "The PFA includes push-ups, sit-ups, and an aerobic assessment. I understand the Navy Officer minimum standards and am training to meet and exceed them to ensure I am physically prepared.", cat: "OSB Interview Prep", theme: "theme-interview" },
+            { q: "What is your general knowledge of current ADF operations and current affairs?", a: "I am aware of Australia’s focus on the Indo-Pacific region, maritime security, cyber threats, coalition operations, and AUKUS-related capability development. I understand that Information Warfare plays an increasingly important role in modern defence operations.", cat: "OSB Interview Prep", theme: "theme-interview" },
+
+            // PART 2 - Role Knowledge (IWO)
+            { q: "Primary Role of an IWO?", a: "To ensure the Commander maintains Decision Advantage. You lead teams to protect our networks, exploit the electromagnetic spectrum, and coordinate information effects.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "What is Decision Advantage?", a: "The ability to see the battlespace clearly and act faster than the enemy. Protecting our data while disrupting theirs allows for smarter tactical choices.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "What are the 3 Pillars of IW?", a: "1. Assured Command & Control (C2). 2. Battlespace Awareness. 3. Joint Fires & Effects.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Explain C3 (Command, Control, Comms).", a: "The 'digital nervous system' of the ship. Ensuring satellite/radio links are resilient so the ship isn't isolated from the Task Group.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Defensive Cyber Operations?", a: "Protecting Navy networks (warfighting and administrative) from intrusion and ensuring mission systems remain functional under attack.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Offensive Cyber Operations?", a: "Contributing to planning effects that degrade an adversary's ability to coordinate their forces.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Electronic Warfare (EW) Goal?", a: "To dominate the Electromagnetic Spectrum (EMS). Ensuring our sensors work while denying the enemy use of theirs.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "What is the EMS?", a: "Electromagnetic Spectrum. The range of frequencies used for communications, radar, and sensors. It is 'congested and contested'.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Information Activities (IA)?", a: "The cognitive domain. Using information to influence adversary decision-making or reassure partners.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "Space Operations relevance?", a: "Navy relies on space for GPS, weather, and comms. IWOs must plan for 'GPS-denied' environments where these assets are targeted.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "IWO vs Network Operator?", a: "The Operator fixes the router; the IWO assesses the operational risk of the outage and advises the Captain on how to fight without it.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "What is EMCON?", a: "Emission Control. restricting radio/radar signals to make the ship electronically 'invisible' to enemy sensors.", cat: "IWO Role", theme: "theme-technical" },
+            { q: "What is C3 Resilience?", a: "The ability of the network to recover quickly or switch to backup paths when attacked, ensuring the Commander never loses control.", cat: "IWO Role", theme: "theme-technical" },
+
+            // PART 3 - Training Pipeline
+            { q: "NEOC Location & Duration?", a: "HMAS Creswell, Jervis Bay, NSW. 18 Weeks.", cat: "Training", theme: "theme-training" },
+            { q: "NEOC Content?", a: "Leadership, discipline, military resilience, small arms, first aid, survival at sea, and Naval history.", cat: "Training", theme: "theme-training" },
+            { q: "IWO Foundation Course Location & Duration?", a: "HMAS Watson, Sydney. 23 Weeks.", cat: "Training", theme: "theme-training" },
+            { q: "IWO Foundation Phases?", a: "Phase 1: IW Fundamentals (Theory). Phase 2: IW Contextualisation (Practical application of the 3 pillars).", cat: "Training", theme: "theme-training" },
+            { q: "What is Consolidation Training?", a: "12 months of rotating through ships/units to complete a task book and prove operational competence.", cat: "Training", theme: "theme-training" },
+            { q: "IMPS for IWO?", a: "Initial Minimum Period of Service: 6 Years.", cat: "Training", theme: "theme-training" },
+            { q: "What is the PFA?", a: "Pre-Entry Fitness Assessment. Push-ups, sit-ups, and 6.1 Beep test (min).", cat: "Training", theme: "theme-training" },
+            { q: "What is the DFDA?", a: "Defence Force Discipline Act. Military law that applies to ADF members on top of civilian law.", cat: "Training", theme: "theme-training" },
+            { q: "Salary: Trainee vs Qualified?", a: "Trainee: ~$69k. Qualified: ~$92k. Plus 16.4% Super.", cat: "Training", theme: "theme-training" },
+            { q: "Military Resilience Training?", a: "Training to prepare officers for the mental demands of combat, isolation, and high-tempo ops.", cat: "Training", theme: "theme-training" },
+            { q: "Survival at Sea training?", a: "Learning to use life rafts, emergency beacons, and survive in the ocean if a ship is lost.", cat: "Training", theme: "theme-training" },
+            { q: "Small Arms Training?", a: "Proficiency with EF88 Rifle and Browning Hi-Power pistol for force protection.", cat: "Training", theme: "theme-training" },
+
+            // PART 4 - Policy & Tech
+            { q: "NDS 2024 Goal?", a: "Safeguard Australia's security with a strategy of 'Deterrence through Denial'.", cat: "Policy", theme: "theme-policy" },
+            { q: "What is Deterrence through Denial?", a: "Making an attack so costly and likely to fail that the adversary chooses not to try.", cat: "Policy", theme: "theme-policy" },
+            { q: "$50 Billion Budget Context?", a: "Additional funding over the next 10 years to rebuild the surface fleet and acquire subs.", cat: "Policy", theme: "theme-policy" },
+            { q: "AUKUS Pillar 1?", a: "Acquisition of nuclear-powered submarines (Virginia class then SSN-AUKUS).", cat: "Policy", theme: "theme-policy" },
+            { q: "AUKUS Pillar 2?", a: "Advanced capability sharing: AI, Quantum, Cyber, Hypersonics, Electronic Warfare.", cat: "Policy", theme: "theme-policy" },
+            { q: "SEA 3000?", a: "Project to acquire 11 General Purpose Frigates (Japanese Mogami-class).", cat: "Policy", theme: "theme-policy" },
+            { q: "Why Mogami Class?", a: "Highly automated (crew of ~90), proven design, fast delivery (first ships by 2029).", cat: "Policy", theme: "theme-policy" },
+            { q: "Ghost Shark?", a: "Autonomous undersea drone (XL-UUV). Persistent surveillance without risking crew.", cat: "Policy", theme: "theme-policy" },
+            { q: "MQ-28 Ghost Bat?", a: "Uncrewed combat aircraft (Loyal Wingman). Uses AI to support crewed jets.", cat: "Policy", theme: "theme-policy" },
+            { q: "Hunter Class Frigates?", a: "Advanced ASW ships being built in Osborne, SA to replace ANZAC class.", cat: "Policy", theme: "theme-policy" },
+            { q: "Copperhead?", a: "Modular, cost-effective guided weapon system for the Navy.", cat: "Policy", theme: "theme-policy" },
+            { q: "Quantum Timekeeping?", a: "Optical quantum comms to keep forces synced when GPS is jammed.", cat: "Policy", theme: "theme-policy" },
+            { q: "Concept: Smart Force?", a: "Blending people, AI, and autonomy to increase lethality without needing massive manpower.", cat: "Policy", theme: "theme-policy" },
+            { q: "Continuous Shipbuilding?", a: "Policy to keep building ships in AU (WA/SA) to maintain industrial skills and sovereign capability.", cat: "Policy", theme: "theme-policy" },
+
+            // PART 5 - Operations
+            { q: "Operation Resolute?", a: "Domestic border protection. Anti-illegal fishing, smuggling, and unauthorized arrivals.", cat: "Operations", theme: "theme-policy" },
+            { q: "Operation Gateway?", a: "Maritime surveillance in North Indian Ocean/South China Sea. Maintaining regional stability.", cat: "Operations", theme: "theme-policy" },
+            { q: "Operation Manitou?", a: "Middle East maritime security. Counter-terrorism, counter-piracy, safe navigation.", cat: "Operations", theme: "theme-policy" },
+            { q: "Operation Dyurra?", a: "ADF Space operation. Integrating space effects into broader operations.", cat: "Operations", theme: "theme-policy" },
+            { q: "PNG Defence Agreement?", a: "Treaty for mutual aid if attacked. Pathway for PNG personnel to train/serve with ADF.", cat: "Operations", theme: "theme-policy" },
+            { q: "Indo-Pacific Importance?", a: "99% of AU trade travels by sea here. Stability is vital for our economy.", cat: "Operations", theme: "theme-policy" },
+            { q: "Rules-Based Global Order?", a: "System of international law (like UNCLOS) ensuring freedom of navigation for all nations.", cat: "Operations", theme: "theme-policy" },
+
+            // PART 6 - Leadership & ADF Knowledge
+            { q: "Who is the CDF?", a: "Admiral David Johnston, AC, RAN.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Who is the CN?", a: "Vice Admiral Mark Hammond.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Who is the VCDF?", a: "Air Marshal Robert Chipman.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Minister for Defence?", a: "Hon. Richard Marles, MP.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Values: CRIES?", a: "Courage, Respect, Integrity, Excellence, Service.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Value: Service?", a: "Self before side. Putting the nation and team first.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Value: Integrity?", a: "Doing the right thing when no one is watching. Moral consistency.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Value: Courage?", a: "Moral and physical courage to do what is right despite fear.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Value: Respect?", a: "Treating others with dignity. Vital for diverse Navy teams.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Value: Excellence?", a: "Striving for the highest standard in every task.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Manager vs Leader?", a: "Managers handle process/resources. Leaders inspire people to achieve a shared goal.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Junior Officer Ranks?", a: "Midshipman > Acting Sub Lieutenant > Sub Lieutenant > Lieutenant.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Senior Officer Ranks?", a: "Lt Commander > Commander > Captain > Commodore > Admiral.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Officer of the Day (OOD)?", a: "Represents the Captain in port. Responsible for ship safety/security. Shows 'Officer first' duty.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Divisional Officer (DO)?", a: "Responsible for welfare, discipline, and career of a group of sailors. First point of contact.", cat: "Leadership", theme: "theme-leadership" },
+
+            // PART 7 - Technical & Scenarios
+            { q: "Defensive Cyber Advice?", a: "Advising Command on network hardening and risks to mission if systems are compromised.", cat: "Technical", theme: "theme-technical" },
+            { q: "What is Data Fusion?", a: "Combining data from multiple sensors (radar, sonar, satellites) into one clear picture.", cat: "Technical", theme: "theme-technical" },
+            { q: "The Cognitive Domain?", a: "The mind of the adversary. The target of influence operations.", cat: "Technical", theme: "theme-technical" },
+            { q: "Non-Kinetic Effects?", a: "Achieving results without physical destruction (e.g., jamming a radar vs blowing it up).", cat: "Technical", theme: "theme-technical" },
+            { q: "Impactful Projection?", a: "Ability to send force far from home to influence events (Diplomacy or Deterrence).", cat: "Technical", theme: "theme-technical" },
+            { q: "Humanitarian Role (IWO)?", a: "Restoring comms in disaster zones to coordinate aid delivery.", cat: "Technical", theme: "theme-technical" },
+            { q: "What is Interoperability?", a: "Ability of our systems to talk securely with allies (US/UK/Japan).", cat: "Technical", theme: "theme-technical" },
+            { q: "Tactical Data Link?", a: "The 'battlefield internet' sharing real-time targeting data between ships/jets (Link 16).", cat: "Technical", theme: "theme-technical" },
+            { q: "SATCOM Risks?", a: "Jamming, Weather interference, Physical anti-satellite attacks.", cat: "Technical", theme: "theme-technical" },
+            { q: "Frequency Hopping?", a: "Rapidly changing radio frequency to evade jamming and interception.", cat: "Technical", theme: "theme-technical" },
+            { q: "What is Spoofing?", a: "Sending fake signals to trick enemy sensors (e.g., faking ship location).", cat: "Technical", theme: "theme-technical" },
+            { q: "What is Jamming?", a: "Flooding a frequency with noise to block enemy comms or radar.", cat: "Technical", theme: "theme-technical" },
+            { q: "Blue Team vs Red Team?", a: "Blue defends the network; Red attacks it (simulation) to test security.", cat: "Technical", theme: "theme-technical" },
+            { q: "HMAS Watson Function?", a: "Premier warfare training establishment. Home of IWO School.", cat: "Technical", theme: "theme-technical" },
+            { q: "HMAS Creswell History?", a: "Royal Australian Naval College (RANC). Est 1913. Home of officer training.", cat: "Training", theme: "theme-training" },
+            { q: "Leadership: Will vs Skill?", a: "If underperformance is Skill, train them. If Will (attitude), counsel/discipline them.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Scenario: Managing Up?", a: "Presenting technical risks honestly to a superior so they can make informed command decisions.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Handling Failure?", a: "Growth mindset. Owning the mistake, learning the lesson, and moving forward.", cat: "Leadership", theme: "theme-leadership" },
+            { q: "Navy Swim Test?", a: "50m swim in overalls, 15min tread water, 3m safety jump.", cat: "Training", theme: "theme-training" },
+            { q: "What is Signature Management?", a: "Controlling a ship's emissions (acoustic, electronic, thermal) to avoid detection.", cat: "Technical", theme: "theme-technical" },
+            { q: "OSINT?", a: "Open Source Intelligence. Intel gathering from public sources (internet, news).", cat: "Technical", theme: "theme-technical" },
+            { q: "The 'Grey Zone'?", a: "Conflict below the threshold of war (cyber attacks, coercion, misinformation).", cat: "Technical", theme: "theme-technical" },
+            { q: "Fleet Base East Location?", a: "Sydney (Garden Island).", cat: "Training", theme: "theme-training" },
+            { q: "Fleet Base West Location?", a: "Rockingham, WA (HMAS Stirling).", cat: "Training", theme: "theme-training" },
+            { q: "My Officer Goal?", a: "To be technically elite but humanly grounded. Trusted by Command for advice, and by sailors for welfare.", cat: "Motivation", theme: "theme-personal" }
+        ];
+
+        let currentIndex = 0;
+        let isStudyMode = false;
+        const container = document.getElementById('card-container');
+        const qText = document.getElementById('question-text');
+        const aText = document.getElementById('answer-text');
+        const cardHeader = document.getElementById('card-header-info');
+        const catLabel = document.getElementById('category-label');
+        const progText = document.getElementById('progress-text');
+        const progBar = document.getElementById('progress-bar');
+        const mainView = document.getElementById('main-view');
+
+        function updateCard() {
+            const card = flashcards[currentIndex];
+            container.classList.remove('is-flipped');
+            
+            setTimeout(() => {
+                qText.innerText = card.q;
+                aText.innerHTML = card.a;
+                catLabel.innerText = card.cat;
+                cardHeader.innerText = `#${currentIndex + 1} | ${card.cat}`;
+                
+                container.className = `w-full max-w-md ${isStudyMode ? '' : 'h-[450px]'} relative card-inner shadow-2xl rounded-2xl ${card.theme}`;
+                
+                progText.innerText = `${currentIndex + 1} / ${flashcards.length}`;
+                progBar.style.width = `${((currentIndex + 1) / flashcards.length) * 100}%`;
+                
+                localStorage.setItem('iwo_flashcard_index', currentIndex);
+            }, 100);
+        }
+
+        function toggleStudyMode() {
+            isStudyMode = !isStudyMode;
+            document.body.classList.toggle('study-mode');
+            const btn = document.getElementById('study-btn');
+            
+            if (isStudyMode) {
+                btn.innerText = "Flip Mode";
+                btn.classList.add('bg-blue-600');
+            } else {
+                btn.innerText = "Study Mode";
+                btn.classList.remove('bg-blue-600');
+            }
+            updateCard();
+        }
+
+        function toggleLibrary() {
+            const modal = document.getElementById('library-modal');
+            const content = document.getElementById('library-content');
+            
+            if (!modal.classList.contains('open')) {
+                content.innerHTML = '';
+                const grouped = {};
+                flashcards.forEach((c, idx) => {
+                    if (!grouped[c.cat]) grouped[c.cat] = [];
+                    grouped[c.cat].push({...c, idx});
+                });
+
+                for (const section in grouped) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.innerHTML = `<h3 class="text-blue-400 font-bold border-b border-slate-700 pb-2 mb-3 text-lg">${section}</h3>`;
+                    const list = document.createElement('div');
+                    list.className = "space-y-2";
+                    
+                    grouped[section].forEach(item => {
+                        const itemBtn = document.createElement('button');
+                        itemBtn.className = "w-full text-left p-3 bg-slate-800 rounded-lg text-sm border border-slate-700 active:bg-blue-900";
+                        itemBtn.innerHTML = `<span class="text-slate-500 mr-2">#${item.idx + 1}</span> ${item.q}`;
+                        itemBtn.onclick = () => {
+                            currentIndex = item.idx;
+                            updateCard();
+                            toggleLibrary();
+                        };
+                        list.appendChild(itemBtn);
+                    });
+                    sectionDiv.appendChild(list);
+                    content.appendChild(sectionDiv);
+                }
+            }
+            modal.classList.toggle('open');
+        }
+
+        function nextCard() {
+            if (currentIndex < flashcards.length - 1) {
+                currentIndex++;
+                updateCard();
+                if (isStudyMode) mainView.scrollTo({top: 0, behavior: 'smooth'});
+            }
+        }
+
+        function prevCard() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateCard();
+                if (isStudyMode) mainView.scrollTo({top: 0, behavior: 'smooth'});
+            }
+        }
+
+        function resetOrder() {
+            currentIndex = 0;
+            updateCard();
+        }
+
+        container.addEventListener('click', () => {
+            if (!isStudyMode) container.classList.toggle('is-flipped');
+        });
+
+        window.onload = () => {
+            const saved = localStorage.getItem('iwo_flashcard_index');
+            if (saved) currentIndex = parseInt(saved);
+            updateCard();
+        };
+
+        let touchstartX = 0;
+        let touchendX = 0;
+        document.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; });
+        document.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            if (touchendX < touchstartX - 70) nextCard();
+            if (touchendX > touchstartX + 70) prevCard();
+        });
+    </script>
+</body>
+</html>
